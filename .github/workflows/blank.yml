@@ -1,0 +1,37 @@
+name: CI
+
+on:
+   workflow_dispatch:
+
+jobs:
+   build:
+     runs-on: ubuntu-latest
+
+     steps:
+       - uses: actions/checkout@v3
+
+       - name: Install Java
+         uses: actions/setup-java@v3
+         with:
+           distribution: 'zulu'
+           java-version: '17'
+
+       - name: Update the system
+         run: |
+          sudo apt-get update
+          sudo apt-get upgrade
+          sudo apt install curl grep
+
+       - name: Build non-root variant
+         run: |
+          curl -OL https://github.com/XDream8/revanced-creator/releases/download/v0.1/revanced-creator.keystore
+          export additional_args="--keystore=revanced-creator.keystore"
+          sh -c "$(curl https://raw.githubusercontent.com/XDream8/revanced-creator/main/patch.sh)"
+          curl -OL https://github.com/XDream8/revanced-creator/releases/download/v0.1/vanced-microg.apk
+
+       - name: Upload Build Artifact(non-root)
+         uses: actions/upload-artifact@v3
+         with:
+           name: revanced-non-root
+           path: |
+            revanced-twitter-9-51-0-release-0.apk
