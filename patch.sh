@@ -48,7 +48,7 @@ checkadb() {
 }
 
 checkyt() {
-    if [ ! "$(adb shell cmd package list packages | grep -o 'com.twitter.android')" ]; then
+    if [ ! "$(adb shell cmd package list packages | grep -o 'com.google.android.youtube')" ]; then
         printf '%b\n' "${RED}root variant: install youtube v${apk_version} on your device to mount w/ integrations, exiting!${NC}"
         exit 1
     fi
@@ -71,9 +71,12 @@ remove_old() {
     if [ ! "$(command -v find)" ]; then
         [ ! -f "$cli_filename" ] && [ -f "revanced-cli-*-all.jar" ] && (printf '%b\n' "${RED}removing old revanced-cli${NC}" && rm -f revanced-cli-*.jar)
         [ ! -f "$patches_filename" ] && [ -f "revanced-patches-*-all.jar" ] && (printf '%b\n' "${RED}removing old revanced-patches${NC}" && rm -f revanced-patches-*.jar)
+        [ ! -f "$apk_filename" ] && [ -f "YouTube-*.apk" ] && (printf '%b\n' "${RED}removing old youtube${NC}" && rm YouTube-17*.apk)
+        [ ! -f "$apk_filename" ] && [ -f "YouTube-Music-*.apk" ] && (printf '%b\n' "${RED}removing old youtube-music${NC}" && rm YouTube-Music-*.apk)
+        [ ! -f "$apk_filename" ] && [ -f "Twitter-*.apk" ] && (printf '%b\n' "${RED}removing old youtube-music${NC}" && rm Twitter-*.apk)
         rm -f $integrations_filename
     else
-        find . -maxdepth 1 -type f \( -name "revanced-*.jar" -or -name "$integrations_filename" \) ! \( -name "*.keystore" -or -name "$cli_filename" -or -name "$patches_filename" -or -name "twitter-9-51-0-release-0.apk" \) -delete
+        find . -maxdepth 1 -type f \( -name "revanced-*.jar" -or -name "$integrations_filename" \) ! \( -name "*.keystore" -or -name "$cli_filename" -or -name "$patches_filename" -or -name "$apk_filename" \) -delete
     fi
 }
 
@@ -95,26 +98,31 @@ download_needed() {
 
 build_apk() {
     base_cmd="java -jar $cli_filename \
-		-a twitter-9-51-0-release-0.apk \
+		-a $apk_filename \
 		-c \
-		-o revanced-twitter-9-51-0-release-0.apk \
-		-b $patches_filename \
-		-m $integrations_filename"
+		-o $output_apk_name \
+		-b $patches_filename "
     if [ "$1" ] && [ ! "$additional_args" = "" ]; then
         # root with $additional_args
         $base_cmd \
+            -m $integrations_filename \
             $additional_args \
-            $1
+            $1 
     elif [ "$1" ] && [ "$additional_args" = "" ]; then
         # root
         $base_cmd \
+            -m $integrations_filename \
             $1
     elif [ ! "$1" ] && [ ! "$additional_args" = "" ]; then
         # non-root with $additional_args
         $base_cmd \
+            -m $integrations_filename \
             $additional_args
     elif [ ! "$1" ] && [ "$additional_args" = "" ]; then
         # non-root
+        $base_cmd \
+            -m $integrations_filename
+    elif [ ! "$1" ] && [ ! "$apk_filename" = "twitter" ]; then
         $base_cmd
     fi
 }
@@ -135,7 +143,10 @@ patch() {
 
 main() {
 
-
+    ## defaults
+    [ -z "$what_to_patch" ] && what_to_patch="youtube"
+    [ -z "$nonroot" ] && nonroot=1
+    [ -z "$additional_args" ] && additional_args=""
 
     ## check $nonroot
     if [ $nonroot = 1 ]; then
@@ -146,7 +157,23 @@ main() {
         sleep 5s
         checkadb
     fi
-    apk_link=https://github.com/Phongvngg1/revanced-creator/releases/download/v0.1/twitter-9-51-0-release-0.apk
+
+    ## what should we patch
+    if [ "$what_to_patch" = "youtube" ]; then
+        [ -z "$apk_version" ] && apk_version=17.27.39
+        apk_filename=YouTube-$apk_version.apk
+        output_apk_name=revanced-$apk_version-$root_text.apk
+    elif [ "$what_to_patch" = "twitter" ]; then
+        [ -z "$apk_version" ] && apk_version=9.41.0
+        apk_filename=Twitter-$apk_version.apk
+    elif [ "$what_to_patch" = "youtube-music" ]; then
+        [ -z "$apk_version" ] && apk_version=5.14.53
+        apk_filename=YouTube-Music-$apk_version.apk
+        output_apk_name=revanced-music-$apk_version-$root_text.apk
+    fi
+
+    ## link to download $what_to_patch
+    apk_link=https://github.com/Phongvngg1/revanced-creator/releases/tag/v0.1/$apk_filename
 
     ## downloader
     if [ -z "$downloader" ] && [ "$(command -v curl)" ]; then
@@ -183,7 +210,7 @@ main() {
 
     if [ $nonroot = 0 ]; then
         printf '%b\n' "${BLUE}root variant: installing stock youtube-$apk_version first${NC}"
-        adb install -r twitter-9-51-0-release-0.apk || ( printf '%b\n' "${RED}install failed, exiting!${NC}" && exit 1 && exit 1 )
+        adb install -r $apk_filename || ( printf '%b\n' "${RED}install failed, exiting!${NC}" && exit 1 && exit 1 )
         checkyt
     fi
 
